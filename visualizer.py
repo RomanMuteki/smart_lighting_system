@@ -1,9 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
 import math
+import requests
+import json
 
 #todo Взаимодействие с сервером, когда тот будет готов
 
+server_url = 'http://localhost:8000'
 vertices = []
 edges = []
 action_stack = []
@@ -13,7 +16,7 @@ counter = 0
 
 
 def connect_to_server():
-    # todo Тут будет отправка на сервер
+    response = requests.get(server_url, )
     global vertex_counter, deleted_vertices, vertices
     x = 100
     y = 100
@@ -102,12 +105,10 @@ def break_camera(event=None):
     for vertex in vertices:
         distance = math.sqrt((x - vertex['x'])**2 + (y - vertex['y'])**2)
         if distance < 7:
-            print(vertices)
             canvas.delete(vertex['rid'])
             x, y = vertex['x'], vertex['y']
             vindex = vertex['id']
             draw_camera(x=x, y=y, vindex=vindex, cam_status='Bad')
-            print(vertices)
 
 
 if __name__ == '__main__':
