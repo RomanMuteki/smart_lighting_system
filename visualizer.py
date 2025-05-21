@@ -2,11 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 import math
 import requests
-import json
 import random
 import threading
 
-# URL сервера
+
 server_url = 'http://localhost:8080'
 vertices = []
 edges = []
@@ -19,14 +18,14 @@ def connect_to_server():
     edges.clear()
     vertex_counter = 0
     try:
-        # Получаем граф с сервера
+        # Получение информации с сервера
         response = requests.get(f"{server_url}/status", timeout=2)
         if response.status_code != 200:
             raise Exception("Не удалось получить граф с сервера")
         data = response.json()
         graph = data["graph"]
 
-        # Создаем камеры
+        # Создание камер
         x = 100
         y = 100
         for cam_id in graph:
@@ -41,7 +40,8 @@ def connect_to_server():
         draw_camera(x=220, y=20, vindex=13, cam_status='Good')
         draw_camera(x=280, y=290, vindex=11, cam_status='Good')
         draw_camera(x=340, y=280, vindex=12, cam_status='Good')
-        # Создаем ребра (фонари)
+
+        # Создание рёбер
         for cam_id in graph:
             for end_id in graph[cam_id]["outgoing_edges"]:
                 start_vertex = next((v for v in vertices if v['id'] == int(cam_id)), None)
@@ -65,6 +65,8 @@ def connect_to_server():
         status_.set("Ошибка создания графа")
         statusL.config(foreground='red')
 
+
+# Отрисовка камер
 def draw_camera(cam_id=None, cam_status=None, x=None, y=None, vindex=None):
     global vertex_counter, vertices
     min_dist = 30
@@ -96,6 +98,8 @@ def draw_camera(cam_id=None, cam_status=None, x=None, y=None, vindex=None):
     else:
         vertices.append(vertex)
 
+
+# Отрисовка рёбер
 def draw_edge(start_vertex, end_vertex, event=None, edge_status=None):
     radius = 6
     x_size = end_vertex['x'] - start_vertex['x']
@@ -125,6 +129,8 @@ def draw_edge(start_vertex, end_vertex, event=None, edge_status=None):
         print(f"Ошибка при создании ребра: {e}")
         return None
 
+
+# Запрос на сервер о статусе рёбер и вершин
 def update_lamp_status():
     try:
         response = requests.get(f"{server_url}/status", timeout=2)
@@ -132,7 +138,8 @@ def update_lamp_status():
             data = response.json()
             lamp_data = data["lamps"]
             broken_cameras = set(data["broken_cameras"])
-            # Обновляем цвет камер
+
+            # Обновление цвета камер
             for vertex in vertices:
                 lamp_id = vertex['id']
                 if lamp_id in broken_cameras:
@@ -144,7 +151,8 @@ def update_lamp_status():
                             has_active_lamp = True
                             break
                     canvas.itemconfig(vertex['rid'], fill='yellow' if has_active_lamp else 'green')
-            # Обновляем ребра (фонари)
+
+            # Обновление статусов рёбер
             for edge in edges:
                 canvas_id = edge["canvas_id"]
                 lamp_id = edge["lamp_id"]
@@ -165,6 +173,7 @@ def threaded_update_lamp_status():
     threading.Thread(target=update_lamp_status, daemon=True).start()
 
 
+# Нажатие ЛКМ на камеру имитирует обнаружение автомобиля
 def find_car(event=None):
     def send_car_event(lamp_id, prev_lamp_ids):
         try:
@@ -224,7 +233,8 @@ def break_camera(event=None):
             is_broken = lamp_id in data["broken_cameras"]
 
             if is_broken:
-                # Восстанавливаем камеру
+
+                # Восстановление камеры
                 print(f"Восстанавливаем камеру id={lamp_id}")
                 try:
                     response = threading.Thread(target=toggle_camera_broken, args=(lamp_id, False), daemon=True).start()
@@ -237,7 +247,8 @@ def break_camera(event=None):
                 canvas.delete(vertex['rid'])
                 x, y = vertex['x'], vertex['y']
                 draw_camera(x=x, y=y, vindex=lamp_id, cam_status='Good')
-                # Удаляем объединенные ребра
+
+                # Удаление побочных рёбер, созданных при поломке камеры
                 new_edges = []
                 for edge in edges:
                     if edge["lamp_id"] in [f"{start_id}→{end_id}" for start_id in data["graph"][str(lamp_id)]["incoming_edges"]
@@ -247,7 +258,8 @@ def break_camera(event=None):
                         new_edges.append(edge)
                 edges.clear()
                 edges.extend(new_edges)
-                # Восстанавливаем исходные ребра
+
+                # Восстановление исходны рёбер
                 if str(lamp_id) in data["graph"]:
                     for end_id in data["graph"][str(lamp_id)]["outgoing_edges"]:
                         start_vertex = next((v for v in vertices if v['id'] == lamp_id), None)
@@ -276,7 +288,7 @@ def break_camera(event=None):
                                     "lamp_id": f"{start_id}→{lamp_id}"
                                 })
             else:
-                # Ломаем камеру
+                # Поломка камеры
                 print(f"Помечаем камеру id={lamp_id} как неисправную")
                 try:
                     response = requests.post(server_url, json={"lamp_id": lamp_id, "set_broken": True}, timeout=2)
@@ -289,7 +301,8 @@ def break_camera(event=None):
                 canvas.delete(vertex['rid'])
                 x, y = vertex['x'], vertex['y']
                 draw_camera(x=x, y=y, vindex=lamp_id, cam_status='Bad')
-                # Удаляем ребра, связанные с камерой
+
+                # Удаление рёбер, которые были связаны со сломанной камерой
                 new_edges = []
                 for edge in edges:
                     if edge["start_id"] == lamp_id or edge["end_id"] == lamp_id:
@@ -298,7 +311,8 @@ def break_camera(event=None):
                         new_edges.append(edge)
                 edges.clear()
                 edges.extend(new_edges)
-                # Создаем объединенные ребра
+
+                # Создание объединённых рёбер
                 if str(lamp_id) in data["graph"]:
                     for start_id in data["graph"][str(lamp_id)]["incoming_edges"]:
                         for end_id in data["graph"][str(lamp_id)]["outgoing_edges"]:
